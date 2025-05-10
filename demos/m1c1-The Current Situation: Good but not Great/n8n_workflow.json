@@ -1,0 +1,210 @@
+{
+    "nodes": [
+      {
+        "parameters": {
+          "path": "webhook-test/ef233235-16bd-4648-9455-2149f11204ac",
+          "responseMode": "responseNode",
+          "options": {
+            "responseHeaders": {
+              "entries": [
+                {
+                  "name": "Content-Type",
+                  "value": "application/json"
+                }
+              ]
+            }
+          }
+        },
+        "id": "139b161b-efad-4d38-aa1a-1e25400d06a4",
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 1,
+        "position": [
+          -680,
+          -560
+        ],
+        "name": "Listen for Trigger from Github Workflow",
+        "webhookId": "ef233235-16bd-4648-9455-2149f11204ac"
+      },
+      {
+        "parameters": {
+          "promptType": "define",
+          "text": "=Please look up Github pull request #{{ $json.pull_request_number }}, analyze any changed files for linting issues and create a GitHub issue with the linting issues it has (if any) and suggested fixes",
+          "options": {
+            "systemMessage": "You are running in a non-interactive environment. You are an expert at code linting. Your job is to receive a GitHub pull request, find all of the files in the pull request, review all affected files and create a GitHub issue with this template:\n\nTitle: Linting Violations Found in PR #<pull request number>\n\nBody:\n\n## Issues\n<linting issues>\n\n## Suggested Fixes\n...."
+          }
+        },
+        "type": "@n8n/n8n-nodes-langchain.agent",
+        "typeVersion": 1.9,
+        "position": [
+          -240,
+          -560
+        ],
+        "id": "633149c1-27d5-4dbe-9034-5d43206f8aac",
+        "name": "AI Agent"
+      },
+      {
+        "parameters": {
+          "modelName": "models/gemini-2.0-flash",
+          "options": {}
+        },
+        "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+        "typeVersion": 1,
+        "position": [
+          -420,
+          -300
+        ],
+        "id": "d74615ee-15b0-4b9c-a2c7-dc7277f8791a",
+        "name": "Google Gemini Chat Model",
+        "credentials": {
+          "googlePalmApi": {
+            "id": "ARYVKWu9TZzwQ3fB",
+            "name": "Google Gemini(PaLM) Api account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "owner": {
+            "__rl": true,
+            "value": "carved-rock-fitness-gym",
+            "mode": "name"
+          },
+          "repository": {
+            "__rl": true,
+            "value": "my-membership",
+            "mode": "list",
+            "cachedResultName": "my-membership",
+            "cachedResultUrl": "https://github.com/carved-rock-fitness-gym/my-membership"
+          },
+          "title": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Title', ``, 'string') }}",
+          "body": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Body', ``, 'string') }}",
+          "labels": [
+            {
+              "label": "technical-debt"
+            }
+          ],
+          "assignees": []
+        },
+        "type": "n8n-nodes-base.githubTool",
+        "typeVersion": 1.1,
+        "position": [
+          160,
+          -360
+        ],
+        "id": "d68fe967-05ca-4d33-a017-94d2e61597af",
+        "name": "Create GitHub Issue",
+        "webhookId": "da143068-e9d8-49cf-a618-82880129716b",
+        "credentials": {
+          "githubApi": {
+            "id": "MI5Ul9UqEbdI0RRe",
+            "name": "GitHub account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "toolDescription": "Queries the GitHub API to find all affected files in a pull request.",
+          "url": "=https://api.github.com/repos/carved-rock-fitness-gym/my-membership/pulls/{{ $json.pull_request_number }}/files",
+          "authentication": "predefinedCredentialType",
+          "nodeCredentialType": "githubApi",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.httpRequestTool",
+        "typeVersion": 4.2,
+        "position": [
+          -120,
+          -280
+        ],
+        "id": "190a5e44-586a-41db-bb16-61c21ba31412",
+        "name": "Get Pull Request Files",
+        "credentials": {
+          "githubApi": {
+            "id": "MI5Ul9UqEbdI0RRe",
+            "name": "GitHub account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "respondWith": "allIncomingItems",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1.2,
+        "position": [
+          180,
+          -620
+        ],
+        "id": "ef768055-8bec-47f6-971a-8d777841a79c",
+        "name": "Respond to Webhook"
+      }
+    ],
+    "connections": {
+      "Listen for Trigger from Github Workflow": {
+        "main": [
+          [
+            {
+              "node": "AI Agent",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "AI Agent": {
+        "main": [
+          [
+            {
+              "node": "Respond to Webhook",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Google Gemini Chat Model": {
+        "ai_languageModel": [
+          [
+            {
+              "node": "AI Agent",
+              "type": "ai_languageModel",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Create GitHub Issue": {
+        "ai_tool": [
+          [
+            {
+              "node": "AI Agent",
+              "type": "ai_tool",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Pull Request Files": {
+        "ai_tool": [
+          [
+            {
+              "node": "AI Agent",
+              "type": "ai_tool",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "pinData": {
+      "Listen for Trigger from Github Workflow": [
+        {
+          "pull_request_number": 182
+        }
+      ]
+    },
+    "meta": {
+      "templateCredsSetupCompleted": true,
+      "instanceId": "24ca526572eca60ee26bbee4ba7087b1023a6874af4ebeed61b2d126e50e531b"
+    }
+  }

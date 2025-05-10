@@ -1,0 +1,619 @@
+{
+    "nodes": [
+      {
+        "parameters": {
+          "path": "040c4742-e10d-45b4-90ed-fa1e3351d408",
+          "responseMode": "responseNode",
+          "options": {
+            "responseHeaders": {
+              "entries": [
+                {
+                  "name": "Content-Type",
+                  "value": "application/json"
+                }
+              ]
+            }
+          }
+        },
+        "id": "09588be6-c125-4e5a-9256-950a04fbf661",
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 1,
+        "position": [
+          -1040,
+          -540
+        ],
+        "name": "Listen for Trigger from Github Workflow",
+        "webhookId": "040c4742-e10d-45b4-90ed-fa1e3351d408"
+      },
+      {
+        "parameters": {
+          "promptType": "define",
+          "text": "=<files>\n{{ JSON.stringify($json.data) }}\n</files>",
+          "options": {
+            "systemMessage": "=You are an expert at code linting. Your job is to receive a JSON-formatted request with various file paths and the code inside each file.\n\nYou will:\n\n1. Look for and fix any linting issues in the files.\n2. First, check if a branch exists and if, create a new branch using the name {{ $('Get PR GitHub Branch').item.json.head.ref }}-linting-fix. If so, use the existing branch.\n3. Commit the new files with fixes to the branch.\n4. Create a PR from that branch with the name: \"Linting fixes for PR:{{ $('Listen for Trigger from Github Workflow').item.json.pull_request_number }}\""
+          }
+        },
+        "type": "@n8n/n8n-nodes-langchain.agent",
+        "typeVersion": 1.9,
+        "position": [
+          1340,
+          -580
+        ],
+        "id": "820e173b-53ba-413d-b79e-952c3598e0c1",
+        "name": "AI Agent"
+      },
+      {
+        "parameters": {
+          "respondWith": "allIncomingItems",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1.2,
+        "position": [
+          2600,
+          -740
+        ],
+        "id": "3830de8b-4b28-4473-b55b-2fd99f81c7b3",
+        "name": "Respond to Webhook"
+      },
+      {
+        "parameters": {
+          "url": "=https://api.github.com/repos/carved-rock-fitness-gym/my-membership/pulls/{{ $('Listen for Trigger from Github Workflow').item.json.pull_request_number }}/files",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          -80,
+          -540
+        ],
+        "id": "5100bc60-5c25-4ed3-a976-fe9b8cdad969",
+        "name": "Get PR Files"
+      },
+      {
+        "parameters": {
+          "url": "={{ $json.contents_url }}",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          140,
+          -540
+        ],
+        "id": "741715a5-a367-498d-b435-4095d1a79dea",
+        "name": "Get File Contents"
+      },
+      {
+        "parameters": {
+          "operation": "toBinary",
+          "sourceProperty": "content",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.convertToFile",
+        "typeVersion": 1.1,
+        "position": [
+          340,
+          -540
+        ],
+        "id": "548d9d32-0659-480a-843d-6f53b1da1b4b",
+        "name": "Convert Base64 to Text File"
+      },
+      {
+        "parameters": {
+          "operation": "text",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.extractFromFile",
+        "typeVersion": 1,
+        "position": [
+          540,
+          -560
+        ],
+        "id": "fd086ddd-7813-4260-a78a-6ce4d783ca6f",
+        "name": "Extract from File"
+      },
+      {
+        "parameters": {
+          "assignments": {
+            "assignments": [
+              {
+                "id": "d18801c8-8c93-4c66-add8-0a5915ac3a6f",
+                "name": "code",
+                "value": "={{ $json.data }}",
+                "type": "string"
+              },
+              {
+                "id": "6da8a116-f59e-481c-a815-acda60e19398",
+                "name": "filePath",
+                "value": "={{ $('Get File Contents').item.json.path }}",
+                "type": "string"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.set",
+        "typeVersion": 3.4,
+        "position": [
+          760,
+          -560
+        ],
+        "id": "aca52d95-fb85-4ed7-965f-eff84ef7954e",
+        "name": "Create Code/FilePath Object"
+      },
+      {
+        "parameters": {
+          "aggregate": "aggregateAllItemData",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.aggregate",
+        "typeVersion": 1,
+        "position": [
+          1000,
+          -560
+        ],
+        "id": "67baf295-70a0-4466-93d3-24a1b3d64a3f",
+        "name": "Collect All Files Changed"
+      },
+      {
+        "parameters": {
+          "url": "=https://api.github.com/repos/carved-rock-fitness-gym/my-membership/pulls/{{ $('Listen for Trigger from Github Workflow').item.json.pull_request_number }}",
+          "authentication": "predefinedCredentialType",
+          "nodeCredentialType": "githubApi",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          -800,
+          -540
+        ],
+        "id": "3760e734-0fe8-47d3-bd6b-1bc6576b9787",
+        "name": "Get PR GitHub Branch",
+        "credentials": {
+          "githubApi": {
+            "id": "MI5Ul9UqEbdI0RRe",
+            "name": "GitHub account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "toolDescription": "Creates a GitHub blob for a file",
+          "method": "POST",
+          "url": "https://api.github.com/repos/carved-rock-fitness-gym/my-membership/git/blobs",
+          "authentication": "predefinedCredentialType",
+          "nodeCredentialType": "githubApi",
+          "sendBody": true,
+          "bodyParameters": {
+            "parameters": [
+              {
+                "name": "content",
+                "value": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('parameters0_Value', ``, 'string') }}"
+              },
+              {
+                "name": "encoding",
+                "value": "utf-8"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "name": "Create GitHub Blob",
+        "type": "n8n-nodes-base.httpRequestTool",
+        "typeVersion": 4.2,
+        "position": [
+          1220,
+          -120
+        ],
+        "id": "7f9cfabc-98fc-4e50-9ddd-73a369d372af",
+        "credentials": {
+          "githubApi": {
+            "id": "MI5Ul9UqEbdI0RRe",
+            "name": "GitHub account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "toolDescription": "Creates a GitHub tree object with one file",
+          "method": "POST",
+          "url": "https://api.github.com/repos/carved-rock-fitness-gym/my-membership/git/trees",
+          "authentication": "predefinedCredentialType",
+          "nodeCredentialType": "githubApi",
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={\n  \"base_tree\": \"{{ $('Get Latest Main Branch Tree Hash').item.json.tree.sha }}\",\n  \"tree\": {{ $fromAI('json_array_of_files','','string') }}\n}",
+          "options": {}
+        },
+        "name": "Create GitHub Tree",
+        "type": "n8n-nodes-base.httpRequestTool",
+        "typeVersion": 4.2,
+        "position": [
+          1440,
+          -120
+        ],
+        "id": "25a0cb46-b26d-46a8-ae94-a17cb3c4591c",
+        "credentials": {
+          "githubApi": {
+            "id": "MI5Ul9UqEbdI0RRe",
+            "name": "GitHub account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "toolDescription": "Creates a commit from the new tree. ",
+          "method": "POST",
+          "url": "https://api.github.com/repos/carved-rock-fitness-gym/my-membership/git/commits",
+          "authentication": "predefinedCredentialType",
+          "nodeCredentialType": "githubApi",
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={\n  \"message\": \"{{ $fromAI('message', '', 'string').replace(/\\n/g, '\\\\n') }}\",\n  \"tree\": \"{{ $fromAI('treeHash', '', 'string') }}\",\n  \"parents\": [\n    \"{{ $('Get Latest Main Branch Commit SHA').item.json.object.sha }}\"\n  ]\n}",
+          "options": {}
+        },
+        "name": "Create GitHub Commit",
+        "type": "n8n-nodes-base.httpRequestTool",
+        "typeVersion": 4.2,
+        "position": [
+          1640,
+          -140
+        ],
+        "id": "7f35a4aa-89c8-4b7f-8b20-27f0f17ec569",
+        "credentials": {
+          "githubApi": {
+            "id": "MI5Ul9UqEbdI0RRe",
+            "name": "GitHub account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "toolDescription": "Creates a Pull Request",
+          "method": "POST",
+          "url": "https://api.github.com/repos/carved-rock-fitness-gym/my-membership/pulls",
+          "authentication": "predefinedCredentialType",
+          "nodeCredentialType": "githubApi",
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={\n  \"title\": \"{{ $fromAI('title','','string') }}\",\n  \"head\": \"refs/heads/{{ $fromAI('head','','string') }}\",\n  \"base\": \"main\",\n  \"body\": \"{{ $fromAI('body','','string') }}\"\n}",
+          "options": {}
+        },
+        "name": "Create Pull Request",
+        "type": "n8n-nodes-base.httpRequestTool",
+        "typeVersion": 4.2,
+        "position": [
+          2140,
+          -520
+        ],
+        "id": "b180fdd4-48ba-4281-887d-6997a6843641",
+        "credentials": {
+          "githubApi": {
+            "id": "MI5Ul9UqEbdI0RRe",
+            "name": "GitHub account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "toolDescription": "Creates a branch to point to the new commit",
+          "method": "POST",
+          "url": "=https://api.github.com/repos/carved-rock-fitness-gym/my-membership/git/refs",
+          "authentication": "predefinedCredentialType",
+          "nodeCredentialType": "githubApi",
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "=  {\n    \"ref\": \"refs/heads/{{ $fromAI('branch_ref','','string') }}\",\n    \"sha\": \"{{ $fromAI('commit_sha','','string') }}\"\n  }",
+          "options": {}
+        },
+        "name": "Create Branch",
+        "type": "n8n-nodes-base.httpRequestTool",
+        "typeVersion": 4.2,
+        "position": [
+          2040,
+          -300
+        ],
+        "id": "12a84954-91b9-4c71-89d5-e86cb9f626f5",
+        "credentials": {
+          "githubApi": {
+            "id": "MI5Ul9UqEbdI0RRe",
+            "name": "GitHub account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "url": "=https://api.github.com/repos/carved-rock-fitness-gym/my-membership/git/ref/heads/main",
+          "authentication": "predefinedCredentialType",
+          "nodeCredentialType": "githubApi",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          -540,
+          -540
+        ],
+        "id": "6cd65525-cf84-408b-8a50-5012947e69b5",
+        "name": "Get Latest Main Branch Commit SHA",
+        "credentials": {
+          "githubApi": {
+            "id": "MI5Ul9UqEbdI0RRe",
+            "name": "GitHub account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "url": "=https://api.github.com/repos/carved-rock-fitness-gym/my-membership/git/commits/{{ $json.object.sha }}",
+          "authentication": "predefinedCredentialType",
+          "nodeCredentialType": "githubApi",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          -300,
+          -540
+        ],
+        "id": "c622207c-aa37-4cb2-b3fe-c07aa21da563",
+        "name": "Get Latest Main Branch Tree Hash",
+        "credentials": {
+          "githubApi": {
+            "id": "MI5Ul9UqEbdI0RRe",
+            "name": "GitHub account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "toolDescription": "Get a branch from the GitHub repo",
+          "url": "=https://api.github.com/repos/carved-rock-fitness-gym/my-membership/branches/{{ $fromAI('branch_name','','string') }}",
+          "authentication": "predefinedCredentialType",
+          "nodeCredentialType": "githubApi",
+          "options": {}
+        },
+        "name": "Get Branch",
+        "type": "n8n-nodes-base.httpRequestTool",
+        "typeVersion": 4.2,
+        "position": [
+          1840,
+          -200
+        ],
+        "id": "f31799e4-79d7-4a6c-b4d2-5f1d7e4d642a",
+        "credentials": {
+          "githubApi": {
+            "id": "MI5Ul9UqEbdI0RRe",
+            "name": "GitHub account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "modelName": "models/gemini-2.0-flash",
+          "options": {}
+        },
+        "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+        "typeVersion": 1,
+        "position": [
+          1060,
+          -340
+        ],
+        "id": "c912b971-9d51-4db2-93b4-31635b1d6cc1",
+        "name": "Google Gemini Chat Model",
+        "credentials": {
+          "googlePalmApi": {
+            "id": "ARYVKWu9TZzwQ3fB",
+            "name": "Google Gemini(PaLM) Api account"
+          }
+        }
+      }
+    ],
+    "connections": {
+      "Listen for Trigger from Github Workflow": {
+        "main": [
+          [
+            {
+              "node": "Get PR GitHub Branch",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "AI Agent": {
+        "main": [
+          []
+        ]
+      },
+      "Get PR Files": {
+        "main": [
+          [
+            {
+              "node": "Get File Contents",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get File Contents": {
+        "main": [
+          [
+            {
+              "node": "Convert Base64 to Text File",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Convert Base64 to Text File": {
+        "main": [
+          [
+            {
+              "node": "Extract from File",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Extract from File": {
+        "main": [
+          [
+            {
+              "node": "Create Code/FilePath Object",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Create Code/FilePath Object": {
+        "main": [
+          [
+            {
+              "node": "Collect All Files Changed",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Collect All Files Changed": {
+        "main": [
+          [
+            {
+              "node": "AI Agent",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get PR GitHub Branch": {
+        "main": [
+          [
+            {
+              "node": "Get Latest Main Branch Commit SHA",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Create GitHub Blob": {
+        "ai_tool": [
+          [
+            {
+              "node": "AI Agent",
+              "type": "ai_tool",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Create GitHub Tree": {
+        "ai_tool": [
+          [
+            {
+              "node": "AI Agent",
+              "type": "ai_tool",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Create GitHub Commit": {
+        "ai_tool": [
+          [
+            {
+              "node": "AI Agent",
+              "type": "ai_tool",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Create Pull Request": {
+        "ai_tool": [
+          [
+            {
+              "node": "AI Agent",
+              "type": "ai_tool",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Create Branch": {
+        "ai_tool": [
+          [
+            {
+              "node": "AI Agent",
+              "type": "ai_tool",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Latest Main Branch Commit SHA": {
+        "main": [
+          [
+            {
+              "node": "Get Latest Main Branch Tree Hash",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Latest Main Branch Tree Hash": {
+        "main": [
+          [
+            {
+              "node": "Get PR Files",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Branch": {
+        "ai_tool": [
+          [
+            {
+              "node": "AI Agent",
+              "type": "ai_tool",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Google Gemini Chat Model": {
+        "ai_languageModel": [
+          [
+            {
+              "node": "AI Agent",
+              "type": "ai_languageModel",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "pinData": {
+      "Listen for Trigger from Github Workflow": [
+        {
+          "pull_request_number": 182
+        }
+      ]
+    },
+    "meta": {
+      "templateCredsSetupCompleted": true,
+      "instanceId": "24ca526572eca60ee26bbee4ba7087b1023a6874af4ebeed61b2d126e50e531b"
+    }
+  }
