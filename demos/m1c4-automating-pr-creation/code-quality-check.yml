@@ -1,0 +1,118 @@
+name: Code Quality Check
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [ main, develop ]
+
+permissions:
+  issues: write
+
+jobs:
+  lint:
+    name: ESLint Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Run ESLint and Capture Results
+        id: eslint
+        run: |
+          # Run ESLint and capture the output, but don't fail the workflow if ESLint finds issues
+          set +e
+          raw_eslint_output=$(npx eslint --format json src/)
+          ESLINT_EXIT_CODE=$?
+          set -e
+          
+          # Sanitize and validate the JSON output using jq
+          # If jq succeeds (exit code 0), set the sanitized output
+          sanitized_eslint_output=$(echo "$raw_eslint_output" | jq -c .)
+          JQ_EXIT_CODE=$?
+
+          # Check if jq succeeded and the output is not empty/null
+          if [[ $JQ_EXIT_CODE -eq 0 && -n "$sanitized_eslint_output" && "$sanitized_eslint_output" != "null" ]]; then
+            echo "ESLint produced valid JSON, encoding to Base64."
+            # Encode the sanitized JSON to Base64
+            # Use -w 0 for base64 to prevent line wrapping
+            base64_output=$(echo -n "$sanitized_eslint_output" | base64 -w 0)
+            echo "eslint-json-base64=$base64_output" >> "$GITHUB_OUTPUT"
+          else
+            echo "ESLint produced no output or invalid JSON (ESLint Exit: $ESLINT_EXIT_CODE, JQ Exit: $JQ_EXIT_CODE). Outputting empty array (Base64 encoded)."
+            # Output empty array encoded in Base64
+            echo "eslint-json-base64=$(echo -n '[]' | base64 -w 0)" >> "$GITHUB_OUTPUT"
+          fi
+          
+      - name: Create issues for ESLint violations
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |-
+            const fs = require('fs');
+            const { repo, owner } = context.repo;
+            const prNumber = context.payload.pull_request.number;
+            let issueBody = "";
+            let totalErrors = 0;
+            
+            try {
+              const base64Content = `${{ steps.eslint.outputs.eslint-json-base64 }}`;
+              console.log(`Raw Base64 content length from output: ${base64Content.length}`);
+              
+              if (!base64Content) {
+                console.log("ESLint results Base64 output is empty. No issues to create.");
+                return;
+              }
+              
+              const eslintResultsContent = Buffer.from(base64Content, 'base64').toString('utf8');
+              console.log(`Decoded content length: ${eslintResultsContent.length}`);
+
+              const eslintResults = JSON.parse(eslintResultsContent);
+              console.log(`Found ${eslintResults.length} files with potential issues after decoding`);
+              
+              let violationDetails = [];
+
+              for (const result of eslintResults) {
+                if (result.messages.length > 0) {
+                  const filePath = result.filePath.replace(/^\/github\/workspace\//, '');
+                  console.log(`Processing file: ${filePath}, found ${result.messages.length} issues`);
+                  
+                  for (const message of result.messages) {
+                    totalErrors++;
+                    const ruleName = message.ruleId || 'unknown-rule';
+                    const detail = `- **${filePath}** (Line ${message.line}, Col ${message.column}): ${message.message} [${ruleName}]`;
+                    violationDetails.push(detail);
+                  }
+                }
+              }
+
+              if (totalErrors > 0) {
+                const issueTitle = `ESLint Violations Found in PR #${prNumber}`;
+                issueBody = `Found ${totalErrors} ESLint violation(s) in Pull Request #${prNumber}:\n\n` + violationDetails.join('\n');
+                
+                console.log(`Creating issue: ${issueTitle}`);
+                await github.rest.issues.create({
+                  owner,
+                  repo,
+                  title: issueTitle,
+                  body: issueBody,
+                  labels: ['technical-debt']
+                });
+                console.log("Successfully created summary issue.");
+              } else {
+                console.log("No ESLint violations found requiring an issue.");
+              }
+              
+            } catch (error) {
+              console.error(`Error processing ESLint results or creating issue: ${error}`);
+              // Optional: Create an issue about the failure itself
+              // core.setFailed(`Action failed with error: ${error.message}`);
+            }
+        id: create-issue
